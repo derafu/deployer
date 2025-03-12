@@ -1,0 +1,22 @@
+{
+    "name": "derafu/deployer",
+    "description": "Derafu: PHP Deployer for multiple sites",
+    "type": "project",
+    "homepage": "https://derafu.org/deployer",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Esteban De La Fuente Rubio / Derafu",
+            "homepage": "https://www.derafu.org"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/derafu/deployer/issues",
+        "source": "https://github.com/derafu/deployer"
+    },
+    "require": {
+        "php": "^8.3",
+        "deployer/deployer": "^7.5",
+        "symfony/console": "^7.2"
+    }
+}
