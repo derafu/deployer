@@ -65,6 +65,12 @@ return [
 ];
 ```
 
+For simple configurations you can use:
+
+```shell
+./siteadd.sh www.example.com git@github.com:example/example.git
+```
+
 ### Available Configuration Options
 
 | Option              | Description                                  | Default                    |
