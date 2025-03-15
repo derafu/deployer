@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 # Function to add a site configuration to the sites.php file.
-add_site_config() {
+site_add_config() {
     local domain="'$1'"
     local repo="'$2'"
 
@@ -16,15 +16,18 @@ add_site_config() {
     if grep -q "$domain" "$config_file"; then
         echo "The configuration for $domain already exists."
     else
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i "" "/];/i\\
+        case "$OSTYPE" in
+            darwin*)
+                sed -i "" "/];/i\\
     $domain => $repo,
 " "$config_file"
-        else
-            sed -i "/];/i\\
+            ;;
+            *)
+                sed -i "/];/i\\
     $domain => $repo,
 " "$config_file"
-        fi
+            ;;
+        esac
         echo "The configuration for $domain has been added."
     fi
 }
@@ -34,4 +37,4 @@ if [ -z "$1" ] || [ -z "$2" ]; then
     exit 1
 fi
 
-add_site_config "$1" "$2"
+site_add_config "$1" "$2"
