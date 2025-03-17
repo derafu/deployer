@@ -38,6 +38,10 @@ host('localhost')
     ->setRemoteUser('admin')
     ->setPort(2222)
     ->setLabels(['stage' => 'dev'])
+    ->setSshArguments([
+        '-o StrictHostKeyChecking=no',
+        '-o UserKnownHostsFile=/dev/null',
+    ]);
 ;
 
 // Set the host for the production stage.
@@ -46,6 +50,9 @@ if (getenv('DEPLOYER_HOST')) {
         ->setRemoteUser(getenv('DEPLOYER_USER') ?: 'admin')
         ->setPort(getenv('DEPLOYER_PORT') ?: 2222)
         ->setLabels(['stage' => 'prod'])
+        ->setSshArguments([
+            '-o StrictHostKeyChecking=no',
+        ]);
     ;
     set('default_selector', 'stage=prod');
 }
