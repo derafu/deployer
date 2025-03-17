@@ -13,6 +13,10 @@ declare(strict_types=1);
 use function Deployer\host;
 use function Deployer\set;
 
+// Get the current user and home directory.
+$userInfo = posix_getpwuid(posix_geteuid());
+echo "User: {$userInfo['name']} | Home: {$userInfo['dir']}" . PHP_EOL;
+
 // Load the Deployer classes and the recipe.
 require __DIR__ . '/vendor/autoload.php';
 require __DIR__ . '/recipe/multisites.php';
