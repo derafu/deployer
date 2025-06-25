@@ -2,12 +2,12 @@
     "name": "derafu/deployer",
     "description": "Derafu: PHP Deployer for multiple sites",
     "type": "project",
-    "homepage": "https://derafu.org/deployer",
+    "homepage": "https://www.derafu.dev/docs/sysadmin/deployer",
     "license": "MIT",
     "authors": [
         {
             "name": "Esteban De La Fuente Rubio / Derafu",
-            "homepage": "https://www.derafu.org"
+            "homepage": "https://www.derafu.dev"
         }
     ],
     "support": {
