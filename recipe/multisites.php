@@ -66,6 +66,9 @@ function deploy_site(array $config)
     set('writable_recursive', $config['writable_recursive'] ?? true);
     set('writable_chmod_mode', $config['writable_chmod_mode'] ?? '0777');
 
+    // Configure the composer options.
+    set('composer_options', '{{composer_action}} --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader');
+
     // Unlock the server if the option is set.
     if (input()->getOption('unlock')) {
         invoke('deploy:unlock');
