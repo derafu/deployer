@@ -67,7 +67,7 @@ function deploy_site(array $config)
     set('writable_chmod_mode', $config['writable_chmod_mode'] ?? '0777');
 
     // Configure the composer options.
-    set('composer_options', '{{composer_action}} --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader');
+    set('composer_options', '--no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader --ignore-platform-req=ext-xdebug');
 
     // Unlock the server if the option is set.
     if (input()->getOption('unlock')) {
