@@ -36,28 +36,26 @@ option('unlock', null, InputOption::VALUE_NONE, 'Unlock the server before deploy
 // Keep only the last 5 versions.
 set('keep_releases', 5);
 
+// Configure the default shared files.
+set('default_shared_files', ['.env']);
+
+// Configure the default shared directories.
+set('default_shared_dirs', []);
+
 // -----------------------------------------------------------------------------
 // Function for the deployment of a single site.
 // -----------------------------------------------------------------------------
 function deploy_site(array $config)
 {
-    $site = $config['name'];
+    // Configure the site repository.
+    configure_site_repository($config);
+    $site = get('site');
 
+    // Write the start message.
     writeln("<info>🚀 Deploying $site in {{hostname}} ({{alias}})</info>");
 
-    // Configure the current site.
-    set('repository', $config['repository']);
-    set('branch', $config['branch'] ?? 'main');
-
-    set('deploy_path', $config['deploy_path'] ?? "/var/www/sites/$site");
-
-    if (isset($config['shared_files'])) {
-        set('shared_files', $config['shared_files']);
-    }
-
-    if (isset($config['shared_dirs'])) {
-        set('shared_dirs', $config['shared_dirs']);
-    }
+    // Configure the paths.
+    configure_paths($config);
 
     // Configure the writable directories.
     set('writable_dirs', $config['writable_dirs'] ?? ['var', 'tmp']);
@@ -88,6 +86,59 @@ function deploy_site(array $config)
     invoke('opcache:reset');
 
     writeln("<info>Site $site deployed successfully in {{hostname}} ({{alias}})</info>");
+}
+
+function configure_site_repository(array $config): void
+{
+    // Get the site name (domain name).
+    if (empty($config['name'])) {
+        throw new Exception("Name is required for site.");
+    }
+    set('site', $config['name']);
+
+    // Get the repository of the site.
+    if (empty($config['repository'])) {
+        $site = get('site');
+        throw new Exception("Repository is required for site $site");
+    }
+    if (!str_contains($config['repository'], '::')) {
+        $config['repository'] = $config['repository'] . '::main';
+    }
+    [$repository, $branch] = explode('::', $config['repository'] );
+
+    // Configure the repository and the branch.
+    set('repository', $repository );
+    set('branch', $config['branch'] ?? $branch);
+}
+
+function configure_paths(array $config): void {
+    // Configure the deploy path.
+    $site = get('site');
+    set('deploy_path', $config['deploy_path'] ?? "/var/www/sites/$site");
+
+    // Configure the shared files with default values.
+    $default_shared_files = get('default_shared_files');
+    set('shared_files', $config['shared_files'] ?? []);
+    foreach ($default_shared_files as $default_shared_file) {
+        if (!in_array($default_shared_file, get('shared_files'))) {
+            $default_shared_file_path = get('deploy_path') . '/shared/' . $default_shared_file;
+            if (test("[ -f $default_shared_file_path ]")) {
+                set('shared_files', array_merge(get('shared_files'), [$default_shared_file]));
+            }
+        }
+    }
+
+    // Configure the shared directories with default values.
+    $default_shared_dirs = get('default_shared_dirs');
+    set('shared_dirs', $config['shared_dirs'] ?? []);
+    foreach ($default_shared_dirs as $default_shared_dir) {
+        if (!in_array($default_shared_dir, get('shared_dirs'))) {
+            $default_shared_dir_path = get('deploy_path') . '/shared/' . $default_shared_dir;
+            if (test("[ -d $default_shared_dir_path ]")) {
+                set('shared_dirs', array_merge(get('shared_dirs'), [$default_shared_dir]));
+            }
+        }
+    }
 }
 
 // -----------------------------------------------------------------------------
