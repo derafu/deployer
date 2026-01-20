@@ -31,6 +31,7 @@ use function Deployer\writeln;
 
 // Configure the custom options for the site.
 option('site', null, InputOption::VALUE_REQUIRED, 'Site to deploy.');
+option('source', null, InputOption::VALUE_OPTIONAL, 'Source of the site configuration.');
 option('unlock', null, InputOption::VALUE_NONE, 'Unlock the server before deploying.');
 
 // Keep only the last 5 versions.
@@ -162,6 +163,7 @@ task('opcache:reset', function () {
 desc('Deploy a single site');
 task('derafu:deploy:single', function () {
     $site = input()->getOption('site');
+    $source = input()->getOption('source');
 
     if (empty($site)) {
         writeln("<error>You must specify a site with --site=name</error>");
@@ -169,12 +171,21 @@ task('derafu:deploy:single', function () {
     }
 
     $sites = get('sites');
-    if (!isset($sites[$site])) {
-        writeln("<error>The site '$site' is not defined in the configuration.</error>");
+
+    $found_sites = array_values(array_filter($sites, function ($config) use ($site, $source) {
+        return $config['name'] === $site && ($source === null || $config['source'] === $source);
+    }));
+
+    if (empty($found_sites)) {
+        if (!empty($source)) {
+            writeln("<error>The site '$site' is not defined in the configuration for source '$source'.</error>");
+        } else {
+            writeln("<error>The site '$site' is not defined in the configuration.</error>");
+        }
         return;
     }
 
-    deploy_site(array_merge(['name' => $site], $sites[$site]));
+    deploy_site($found_sites[0]);
 
     writeln("<info>✅ Deploy completed successfully!</info>");
 });
@@ -190,8 +201,8 @@ task('derafu:deploy:all', function () {
         return;
     }
 
-    foreach ($sites as $site => $config) {
-        deploy_site(array_merge(['name' => $site], $config));
+    foreach ($sites as $config) {
+        deploy_site($config);
     }
 
     writeln("<info>✅ Deploy completed successfully!</info>");
@@ -217,7 +228,7 @@ task('derafu:sites:list', function() {
     writeln("");
     writeln("Configured sites:");
 
-    foreach (get('sites') as $site => $config) {
-        writeln("  - $site: " . $config['repository']);
+    foreach (get('sites') as $config) {
+        writeln("  - " . $config['name'] . ": " . $config['repository']);
     }
 });

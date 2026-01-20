@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-# Function to add a site configuration to the sites.php file.
+# Function to add a site configuration to the config/sites.yaml file.
 site_add_config() {
     local domain="'$1'"
     local repo="'$2'"
@@ -11,30 +11,21 @@ site_add_config() {
         DEPLOYER_DIR="${DEPLOYER_DIR:-$(cd "$(dirname "${(%):-%N}")" && pwd)}"
     fi
 
-    local config_file="${DEPLOYER_DIR:-.}/sites.php"
+    local config_file="${DEPLOYER_DIR:-.}/config/sites.yaml"
 
-    if grep -q "$domain" "$config_file"; then
+    if [ -f "$config_file" ] && grep -Eq "^$domain:" "$config_file"; then
         echo "The configuration for $domain already exists."
     else
-        case "$OSTYPE" in
-            darwin*)
-                sed -i "" "/];/i\\
-    $domain => $repo,
-" "$config_file"
-            ;;
-            *)
-                sed -i "/];/i\\
-    $domain => $repo,
-" "$config_file"
-            ;;
-        esac
+        echo "$domain: $repo" >> "$config_file"
         echo "The configuration for $domain has been added."
     fi
 }
 
+# Validate the arguments and show the usage if needed.
 if [ -z "$1" ] || [ -z "$2" ]; then
-    echo "Usage: ./siteadd.sh \"www.example.com\" \"git@github.com:example/www.example.com.git\""
+    echo "Usage: $0 \"www.example.com\" \"git@github.com:example/www.example.com.git\""
     exit 1
 fi
 
+# Add the site configuration to the config/sites.yaml file.
 site_add_config "$1" "$2"

@@ -21,15 +21,8 @@ echo "User: {$userInfo['name']} | Home: {$userInfo['dir']}" . PHP_EOL;
 require __DIR__ . '/vendor/autoload.php';
 require __DIR__ . '/recipe/multisites.php';
 
-// Load the sites and normalize them.
+// Configure the sites configuration, must be already normalized.
 $sites = require __DIR__ . '/sites.php';
-foreach ($sites as $site => &$config) {
-    if (is_string($config)) {
-        $config = [
-            'repository' => $config,
-        ];
-    }
-}
 
 // Set the sites.
 set('sites', $sites);
