@@ -94,7 +94,13 @@ function deploy_site(array $config)
 // Task to build the assets.
 // -----------------------------------------------------------------------------
 task('deploy:assets', function () {
-    if (test('[ -f {{release_path}}/package.json ]')) {
+    if (!test('[ -f {{release_path}}/package.json ]')) {
+        return;
+    }
+
+    if (test('[ -f {{release_path}}/package-lock.json ]')) {
+        run('cd {{release_path}} && npm ci && npm run build');
+    } else {
         run('cd {{release_path}} && npm install && npm run build');
     }
 });
