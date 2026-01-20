@@ -36,12 +36,6 @@ option('unlock', null, InputOption::VALUE_NONE, 'Unlock the server before deploy
 // Keep only the last 5 versions.
 set('keep_releases', 5);
 
-// Configure the default shared files.
-set('default_shared_files', ['.env']);
-
-// Configure the default shared directories.
-set('default_shared_dirs', []);
-
 // -----------------------------------------------------------------------------
 // Function for the deployment of a single site.
 // -----------------------------------------------------------------------------
@@ -50,12 +44,13 @@ function deploy_site(array $config)
     // Configure the site repository.
     configure_site_repository($config);
     $site = get('site');
-
-    // Write the start message.
     writeln("<info>🚀 Deploying $site in {{hostname}} ({{alias}})</info>");
 
     // Configure the paths.
     configure_paths($config);
+    writeln("<info>- Deploy path: " . get('deploy_path') . "</info>");
+    writeln("<info>- Shared files: " . implode(', ', get('shared_files')) . "</info>");
+    writeln("<info>- Shared directories: " . implode(', ', get('shared_dirs')) . "</info>");
 
     // Configure the writable directories.
     set('writable_dirs', $config['writable_dirs'] ?? ['var', 'tmp']);
@@ -88,6 +83,9 @@ function deploy_site(array $config)
     writeln("<info>Site $site deployed successfully in {{hostname}} ({{alias}})</info>");
 }
 
+// -----------------------------------------------------------------------------
+// Function to configure the site repository.
+// -----------------------------------------------------------------------------
 function configure_site_repository(array $config): void
 {
     // Get the site name (domain name).
@@ -111,34 +109,29 @@ function configure_site_repository(array $config): void
     set('branch', $config['branch'] ?? $branch);
 }
 
-function configure_paths(array $config): void {
+// -----------------------------------------------------------------------------
+// Function to configure the paths:
+//   - deploy_path
+//   - shared_files
+//   - shared_dirs
+// -----------------------------------------------------------------------------
+function configure_paths(array $config): void
+{
     // Configure the deploy path.
     $site = get('site');
     set('deploy_path', $config['deploy_path'] ?? "/var/www/sites/$site");
 
-    // Configure the shared files with default values.
-    $default_shared_files = get('default_shared_files');
-    set('shared_files', $config['shared_files'] ?? []);
-    foreach ($default_shared_files as $default_shared_file) {
-        if (!in_array($default_shared_file, get('shared_files'))) {
-            $default_shared_file_path = get('deploy_path') . '/shared/' . $default_shared_file;
-            if (test("[ -f $default_shared_file_path ]")) {
-                set('shared_files', array_merge(get('shared_files'), [$default_shared_file]));
-            }
-        }
-    }
+    // Configure the shared files, from config or from the shared directory.
+    $shared_files = $config['shared_files'] ?? array_filter(explode("\n", trim(
+        run('find {{deploy_path}}/shared -mindepth 1 -maxdepth 1 -type f -printf "%f\n"')
+    )));
+    set('shared_files', $shared_files);
 
-    // Configure the shared directories with default values.
-    $default_shared_dirs = get('default_shared_dirs');
-    set('shared_dirs', $config['shared_dirs'] ?? []);
-    foreach ($default_shared_dirs as $default_shared_dir) {
-        if (!in_array($default_shared_dir, get('shared_dirs'))) {
-            $default_shared_dir_path = get('deploy_path') . '/shared/' . $default_shared_dir;
-            if (test("[ -d $default_shared_dir_path ]")) {
-                set('shared_dirs', array_merge(get('shared_dirs'), [$default_shared_dir]));
-            }
-        }
-    }
+    // Configure the shared directories, from config or from the shared directory.
+    $shared_dirs = $config['shared_dirs'] ?? array_filter(explode("\n", trim(
+        run('find {{deploy_path}}/shared -mindepth 1 -maxdepth 1 -type d -printf "%f\n"')
+    )));
+    set('shared_dirs', $shared_dirs);
 }
 
 // -----------------------------------------------------------------------------
