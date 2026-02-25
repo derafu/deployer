@@ -98,6 +98,10 @@ function get_site(string $site): array
  */
 function deploy_site(array $config)
 {
+    // Configure the site repository and the paths.
+    configure_site_repository($config);
+    configure_paths($config);
+
     // Show the site name.
     $site = get('site');
     writeln("<info>🚀 Deploying $site in {{hostname}} ({{alias}})</info>");
@@ -153,10 +157,6 @@ function deploy_site(array $config)
  */
 function configure_site_repository(array $config): void
 {
-    // Configure the site repository and the paths.
-    configure_site_repository($config);
-    configure_paths($config);
-
     // Get the site name (domain name).
     if (empty($config['name'])) {
         throw new Exception("Name is required for site.");
