@@ -30,26 +30,27 @@ set('sites', $sites);
 // Set the www root path.
 set('www_root_path', '/var/www/sites');
 
-// Set the host for the development stage.
+// Default local environment.
 host('localhost')
     ->setRemoteUser('admin')
     ->setPort(2222)
-    ->setLabels(['stage' => 'dev'])
+    ->setLabels(['stage' => 'local'])
     ->setSshArguments([
         '-o StrictHostKeyChecking=no',
         '-o UserKnownHostsFile=/dev/null',
     ]);
 ;
 
-// Set the host for the production stage.
+// Remote environment (only if DEPLOYER_HOST is set).
 if (getenv('DEPLOYER_HOST')) {
+    $stage = getenv('DEPLOYER_STAGE') ?: 'prod';
     host(getenv('DEPLOYER_HOST'))
         ->setRemoteUser(getenv('DEPLOYER_USER') ?: 'admin')
         ->setPort(getenv('DEPLOYER_PORT') ?: 2222)
-        ->setLabels(['stage' => 'prod'])
+        ->setLabels(['stage' => $stage])
         ->setSshArguments([
             '-o StrictHostKeyChecking=no',
         ]);
     ;
-    set('default_selector', 'stage=prod');
+    set('default_selector', 'stage=' . $stage);
 }

@@ -30,25 +30,79 @@ use function Deployer\writeln;
 // -----------------------------------------------------------------------------
 
 // Configure the custom options for the site.
-option('site', null, InputOption::VALUE_REQUIRED, 'Site to deploy.');
 option('source', null, InputOption::VALUE_OPTIONAL, 'Source of the site configuration.');
+option('site', null, InputOption::VALUE_REQUIRED, 'Site to deploy.');
 option('unlock', null, InputOption::VALUE_NONE, 'Unlock the server before deploying.');
 
 // Keep only the last 5 versions.
 set('keep_releases', 5);
 
+/**
+ * Get the sites configuration.
+ *
+ * @return array The sites configuration.
+ */
+function get_sites(): array
+{
+    $source = input()->getOption('source');
+
+    $sites = get('sites');
+
+    $found_sites = array_values(array_filter($sites, function ($config) use ($source) {
+        return $source === null || $config['source'] === $source;
+    }));
+
+    if (empty($found_sites)) {
+        if (!empty($source)) {
+            throw new Exception("No sites are defined in the configuration for source '$source'.");
+        }
+        throw new Exception('No sites are defined in the configuration.');
+    }
+
+    return $found_sites;
+}
+
 // -----------------------------------------------------------------------------
-// Function for the deployment of a single site.
+// Functions.
 // -----------------------------------------------------------------------------
+
+/**
+ * Get the site configuration.
+ *
+ * @param string $site The site name.
+ * @return array The site configuration.
+ */
+function get_site(string $site): array
+{
+    $sites = get_sites();
+
+    $found_sites = array_values(array_filter($sites, function ($config) use ($site) {
+        return $config['name'] === $site;
+    }));
+
+    if (empty($found_sites)) {
+        $source = input()->getOption('source');
+        if (!empty($source)) {
+            throw new Exception("The site '$site' is not defined in the configuration for source '$source'.");
+        }
+        throw new Exception("The site '$site' is not defined in the configuration.");
+    }
+
+    return $found_sites[0];
+}
+
+/**
+ * Deploy the site.
+ *
+ * @param array $config The site configuration.
+ */
 function deploy_site(array $config)
 {
-    // Configure the site repository.
-    configure_site_repository($config);
+    // Show the site name.
     $site = get('site');
     writeln("<info>🚀 Deploying $site in {{hostname}} ({{alias}})</info>");
 
-    // Configure the paths.
-    configure_paths($config);
+    // Show the site paths.
     writeln("<info>- Deploy path: " . get('deploy_path') . "</info>");
     writeln("<info>- Shared files: " . implode(', ', get('shared_files')) . "</info>");
     writeln("<info>- Shared directories: " . implode(', ', get('shared_dirs')) . "</info>");
@@ -68,27 +122,41 @@ function deploy_site(array $config)
         invoke('deploy:unlock');
     }
 
-    // Run deploy tasks.
+    // Get or update the code.
     invoke('deploy:check_remote');
     invoke('deploy:prepare');
     invoke('deploy:update_code');
+
+    // Run the deploy tasks.
+    invoke('deploy:initial_actions');
     invoke('deploy:shared');
     invoke('deploy:writable');
     invoke('deploy:vendors');
     invoke('deploy:assets');
+    invoke('deploy:final_actions');
+
+    // Finalize the deployment.
     invoke('deploy:symlink');
-    invoke('deploy:unlock');
     invoke('deploy:cleanup');
     invoke('opcache:reset');
+    invoke('deploy:success_actions');
+    invoke('deploy:unlock');
 
+    // Show the success message.
     writeln("<info>Site $site deployed successfully in {{hostname}} ({{alias}})</info>");
 }
 
-// -----------------------------------------------------------------------------
-// Function to configure the site repository.
-// -----------------------------------------------------------------------------
+/**
+ * Configure the site repository.
+ *
+ * @param array $config The site configuration.
+ */
 function configure_site_repository(array $config): void
 {
+    // Configure the site repository and the paths.
+    configure_site_repository($config);
+    configure_paths($config);
+
     // Get the site name (domain name).
     if (empty($config['name'])) {
         throw new Exception("Name is required for site.");
@@ -110,12 +178,12 @@ function configure_site_repository(array $config): void
     set('branch', $config['branch'] ?? $branch);
 }
 
-// -----------------------------------------------------------------------------
-// Function to configure the paths:
-//   - deploy_path
-//   - shared_files
-//   - shared_dirs
-// -----------------------------------------------------------------------------
+/**
+ * Configure the paths:
+ *   - deploy_path
+ *   - shared_files
+ *   - shared_dirs
+ */
 function configure_paths(array $config): void
 {
     // Configure the deploy path.
@@ -151,6 +219,33 @@ task('deploy:assets', function () {
 });
 
 // -----------------------------------------------------------------------------
+// Task to run the initial actions (if defined in the .deployer/actions/initial.sh file).
+// -----------------------------------------------------------------------------
+task('deploy:initial_actions', function () {
+    if (test('[ -f {{release_path}}/.deployer/actions/initial.sh ]')) {
+        run('cd {{release_path}} && ./.deployer/actions/initial.sh');
+    }
+});
+
+// -----------------------------------------------------------------------------
+// Task to run the final actions (if defined in the .deployer/final_actions.sh file).
+// -----------------------------------------------------------------------------
+task('deploy:final_actions', function () {
+    if (test('[ -f {{release_path}}/.deployer/actions/final.sh ]')) {
+        run('cd {{release_path}} && ./.deployer/actions/final.sh');
+    }
+});
+
+// -----------------------------------------------------------------------------
+// Task to run the success actions (if defined in the .deployer/success_actions.sh file).
+// -----------------------------------------------------------------------------
+task('deploy:success_actions', function () {
+    if (test('[ -f {{release_path}}/.deployer/actions/success.sh ]')) {
+        run('cd {{release_path}} && ./.deployer/actions/success.sh');
+    }
+});
+
+// -----------------------------------------------------------------------------
 // Task to reset the opcache after the deployment.
 // -----------------------------------------------------------------------------
 task('opcache:reset', function () {
@@ -163,31 +258,19 @@ task('opcache:reset', function () {
 desc('Deploy a single site');
 task('derafu:deploy:single', function () {
     $site = input()->getOption('site');
-    $source = input()->getOption('source');
 
     if (empty($site)) {
         writeln("<error>You must specify a site with --site=name</error>");
         return;
     }
 
-    $sites = get('sites');
-
-    $found_sites = array_values(array_filter($sites, function ($config) use ($site, $source) {
-        return $config['name'] === $site && ($source === null || $config['source'] === $source);
-    }));
-
-    if (empty($found_sites)) {
-        if (!empty($source)) {
-            writeln("<error>The site '$site' is not defined in the configuration for source '$source'.</error>");
-        } else {
-            writeln("<error>The site '$site' is not defined in the configuration.</error>");
-        }
-        return;
+    try {
+        $site = get_site($site);
+        deploy_site($site);
+        writeln("<info>✅ Deploy completed successfully!</info>");
+    } catch (Exception $e) {
+        writeln("<error>{$e->getMessage()}</error>");
     }
-
-    deploy_site($found_sites[0]);
-
-    writeln("<info>✅ Deploy completed successfully!</info>");
 });
 
 // -----------------------------------------------------------------------------
@@ -195,17 +278,15 @@ task('derafu:deploy:single', function () {
 // -----------------------------------------------------------------------------
 desc('Deploy all sites');
 task('derafu:deploy:all', function () {
-    $sites = get('sites');
-    if (empty($sites)) {
-        writeln("<error>No sites are defined in the configuration.</error>");
-        return;
+    try {
+        $sites = get_sites();
+        foreach ($sites as $config) {
+            deploy_site($config);
+        }
+        writeln("<info>✅ Deploy completed successfully!</info>");
+    } catch (Exception $e) {
+        writeln("<error>{$e->getMessage()}</error>");
     }
-
-    foreach ($sites as $config) {
-        deploy_site($config);
-    }
-
-    writeln("<info>✅ Deploy completed successfully!</info>");
 });
 
 // -----------------------------------------------------------------------------
@@ -228,7 +309,12 @@ task('derafu:sites:list', function() {
     writeln("");
     writeln("Configured sites:");
 
-    foreach (get('sites') as $config) {
-        writeln("  - " . $config['name'] . ": " . $config['repository']);
+    try {
+        $sites = get_sites();
+        foreach ($sites as $config) {
+            writeln('  - ['.$config['source'] . '] ' . $config['name'] . ": " . $config['repository']);
+        }
+    } catch (Exception $e) {
+        writeln("<error>{$e->getMessage()}</error>");
     }
 });
