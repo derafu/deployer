@@ -285,6 +285,7 @@ task('derafu:deploy:single', function () {
         $site = get_site($site);
     } catch (Exception $e) {
         writeln("<error>{$e->getMessage()}</error>");
+        return;
     }
 
     deploy_site($site);
@@ -300,6 +301,7 @@ task('derafu:deploy:all', function () {
         $sites = get_sites();
     } catch (Exception $e) {
         writeln("<error>{$e->getMessage()}</error>");
+        return;
     }
 
     foreach ($sites as $config) {
@@ -326,15 +328,21 @@ task('derafu:sites:list', function() {
     writeln("  --port (-p): SSH port (default: 2222)");
     writeln("  --site: Site to deploy (required for deploy:single)");
     writeln("");
-    writeln("Configured sites:");
 
     try {
         $sites = get_sites();
     } catch (Exception $e) {
         writeln("<error>{$e->getMessage()}</error>");
+        return;
     }
 
+    writeln("Configured sites:");
+    writeln("");
+    writeln(sprintf('  |-%-15s-|-%-30s-|-%-60s-|', str_repeat('-', 15), str_repeat('-', 30), str_repeat('-', 60)));
+    writeln(sprintf('  | %-15s | %-30s | %-60s |', 'Source', 'Name', 'Repository'));
+    writeln(sprintf('  |-%-15s-|-%-30s-|-%-60s-|', str_repeat('-', 15), str_repeat('-', 30), str_repeat('-', 60)));
     foreach ($sites as $config) {
-        writeln('  - ['.$config['source'] . '] ' . $config['name'] . ": " . $config['repository']);
+        writeln(sprintf('  | %-15s | %-30s | %-60s |', $config['source'], $config['name'], $config['repository']));
     }
+    writeln(sprintf('  |-%-15s-|-%-30s-|-%-60s-|', str_repeat('-', 15), str_repeat('-', 30), str_repeat('-', 60)));
 });
