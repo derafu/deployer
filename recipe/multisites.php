@@ -126,13 +126,17 @@ function deploy_site(array $config)
         invoke('deploy:unlock');
     }
 
-    // Get or update the code.
-    invoke('deploy:check_remote');
-    invoke('deploy:prepare');
+    // Prepares a new release updating the code.
+    invoke('deploy:info');
+    invoke('deploy:setup');         // Creates the deploy path and other directories.
+    invoke('deploy:check_remote');  // Checks if the code is already deployed.
+    invoke('deploy:lock');
+    invoke('deploy:release');
     invoke('deploy:update_code');
 
     // Run the deploy tasks.
     invoke('deploy:initial_actions');
+    invoke('deploy:env');
     invoke('deploy:shared');
     invoke('deploy:writable');
     invoke('deploy:vendors');
@@ -141,10 +145,11 @@ function deploy_site(array $config)
 
     // Finalize the deployment.
     invoke('deploy:symlink');
+    invoke('deploy:unlock');
     invoke('deploy:cleanup');
     invoke('opcache:reset');
     invoke('deploy:success_actions');
-    invoke('deploy:unlock');
+    invoke('deploy:success');
 
     // Show the success message.
     writeln("<info>Site $site deployed successfully in {{hostname}} ({{alias}})</info>");
@@ -191,15 +196,27 @@ function configure_paths(array $config): void
     set('deploy_path', $config['deploy_path'] ?? "/var/www/sites/$site");
 
     // Configure the shared files, from config or from the shared directory.
-    $shared_files = $config['shared_files'] ?? array_filter(explode("\n", trim(
-        run('find {{deploy_path}}/shared -mindepth 1 -maxdepth 1 -type f -printf "%f\n"')
-    )));
+    $shared_files =
+        $config['shared_files'] ?? (
+            test('[ -d {{deploy_path}}/shared ]')
+                ? array_filter(explode("\n", trim(
+                    run('find {{deploy_path}}/shared -mindepth 1 -maxdepth 1 -type f -printf "%f\n"')
+                )))
+                : []
+            )
+    ;
     set('shared_files', $shared_files);
 
     // Configure the shared directories, from config or from the shared directory.
-    $shared_dirs = $config['shared_dirs'] ?? array_filter(explode("\n", trim(
-        run('find {{deploy_path}}/shared -mindepth 1 -maxdepth 1 -type d -printf "%f\n"')
-    )));
+    $shared_dirs =
+        $config['shared_dirs'] ?? (
+            test('[ -d {{deploy_path}}/shared ]')
+                ? array_filter(explode("\n", trim(
+                    run('find {{deploy_path}}/shared -mindepth 1 -maxdepth 1 -type d -printf "%f\n"')
+                )))
+                : []
+            )
+    ;
     set('shared_dirs', $shared_dirs);
 }
 
@@ -266,11 +283,12 @@ task('derafu:deploy:single', function () {
 
     try {
         $site = get_site($site);
-        deploy_site($site);
-        writeln("<info>✅ Deploy completed successfully!</info>");
     } catch (Exception $e) {
         writeln("<error>{$e->getMessage()}</error>");
     }
+
+    deploy_site($site);
+    writeln("<info>✅ Deploy completed successfully!</info>");
 });
 
 // -----------------------------------------------------------------------------
@@ -280,13 +298,14 @@ desc('Deploy all sites');
 task('derafu:deploy:all', function () {
     try {
         $sites = get_sites();
-        foreach ($sites as $config) {
-            deploy_site($config);
-        }
-        writeln("<info>✅ Deploy completed successfully!</info>");
     } catch (Exception $e) {
         writeln("<error>{$e->getMessage()}</error>");
     }
+
+    foreach ($sites as $config) {
+        deploy_site($config);
+    }
+    writeln("<info>✅ Deploy completed successfully!</info>");
 });
 
 // -----------------------------------------------------------------------------
@@ -311,10 +330,11 @@ task('derafu:sites:list', function() {
 
     try {
         $sites = get_sites();
-        foreach ($sites as $config) {
-            writeln('  - ['.$config['source'] . '] ' . $config['name'] . ": " . $config['repository']);
-        }
     } catch (Exception $e) {
         writeln("<error>{$e->getMessage()}</error>");
+    }
+
+    foreach ($sites as $config) {
+        writeln('  - ['.$config['source'] . '] ' . $config['name'] . ": " . $config['repository']);
     }
 });
