@@ -220,6 +220,21 @@ function configure_paths(array $config): void
     set('shared_dirs', $shared_dirs);
 }
 
+/**
+ * Run the action.
+ *
+ * @param string $action The action to run.
+ */
+function run_action(string $action): void
+{
+    if (test("[ -f {{release_path}}/.deployer/actions/$action.sh ]")) {
+        $output = trim(run("cd {{release_path}} && ./.deployer/actions/$action.sh"))
+            ?: "Action '$action' executed without output."
+        ;
+        writeln("<info>$output</info>");
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Task to build the assets.
 // -----------------------------------------------------------------------------
@@ -239,27 +254,21 @@ task('deploy:assets', function () {
 // Task to run the initial actions (if defined in the .deployer/actions/initial.sh file).
 // -----------------------------------------------------------------------------
 task('deploy:initial_actions', function () {
-    if (test('[ -f {{release_path}}/.deployer/actions/initial.sh ]')) {
-        run('cd {{release_path}} && ./.deployer/actions/initial.sh');
-    }
+    run_action('initial');
 });
 
 // -----------------------------------------------------------------------------
 // Task to run the final actions (if defined in the .deployer/final_actions.sh file).
 // -----------------------------------------------------------------------------
 task('deploy:final_actions', function () {
-    if (test('[ -f {{release_path}}/.deployer/actions/final.sh ]')) {
-        run('cd {{release_path}} && ./.deployer/actions/final.sh');
-    }
+    run_action('final');
 });
 
 // -----------------------------------------------------------------------------
 // Task to run the success actions (if defined in the .deployer/success_actions.sh file).
 // -----------------------------------------------------------------------------
 task('deploy:success_actions', function () {
-    if (test('[ -f {{release_path}}/.deployer/actions/success.sh ]')) {
-        run('cd {{release_path}} && ./.deployer/actions/success.sh');
-    }
+    run_action('success');
 });
 
 // -----------------------------------------------------------------------------
